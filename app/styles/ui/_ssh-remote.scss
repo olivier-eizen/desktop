@@ -110,3 +110,203 @@
     }
   }
 }
+
+// Remote file explorer in the Add Remote Repository dialog
+
+#add-remote-repository {
+  .remote-path-row {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--spacing-half);
+
+    .text-box-component {
+      flex: 1;
+    }
+
+    .browse-remote-button {
+      flex-shrink: 0;
+      padding: var(--spacing-third) var(--spacing);
+      margin-bottom: var(--spacing);
+      border: var(--base-border);
+      border-radius: var(--border-radius);
+      background-color: var(--button-background);
+      color: var(--text-color);
+      font-size: var(--font-size);
+      cursor: pointer;
+
+      &:hover {
+        background-color: var(--button-hover-background);
+      }
+
+      &:disabled {
+        cursor: default;
+        opacity: 0.5;
+      }
+    }
+  }
+}
+
+.remote-file-explorer {
+  margin-top: var(--spacing-half);
+  margin-bottom: var(--spacing);
+  border: var(--base-border);
+  border-radius: var(--border-radius);
+  background-color: var(--background-color);
+
+  .remote-explorer-breadcrumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: var(--spacing-third) var(--spacing-half);
+    background-color: var(--box-alt-background-color);
+    border-bottom: var(--base-border);
+    font-size: var(--font-size-sm);
+
+    .remote-explorer-separator {
+      margin: 0 2px;
+      color: var(--text-secondary-color);
+    }
+
+    .remote-explorer-breadcrumb {
+      background: none;
+      border: none;
+      padding: 2px 4px;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      color: var(--link-button-color);
+      font-size: var(--font-size-sm);
+
+      &:hover:not(:disabled) {
+        background-color: var(--list-item-hover-background-color);
+        text-decoration: underline;
+      }
+
+      &:disabled {
+        color: var(--text-color);
+        cursor: default;
+        font-weight: var(--font-weight-semibold);
+      }
+    }
+  }
+
+  .remote-explorer-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-half);
+    padding: var(--spacing-third) var(--spacing-half);
+    border-bottom: var(--base-border);
+
+    button {
+      padding: 3px 8px;
+      font-size: var(--font-size-sm);
+      border: var(--base-border);
+      border-radius: var(--border-radius);
+      background-color: var(--button-background);
+      color: var(--text-color);
+      cursor: pointer;
+
+      &:hover:not(:disabled) {
+        background-color: var(--button-hover-background);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+    }
+
+    .remote-explorer-select-button {
+      margin-left: auto;
+    }
+  }
+
+  .remote-explorer-list {
+    max-height: 250px;
+    overflow-y: auto;
+    min-height: 80px;
+  }
+
+  .remote-explorer-loading,
+  .remote-explorer-error,
+  .remote-explorer-empty {
+    padding: var(--spacing);
+    text-align: center;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary-color);
+  }
+
+  .remote-explorer-error {
+    color: var(--error-color);
+  }
+
+  .remote-explorer-entry {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-half);
+    padding: 4px var(--spacing-half);
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+      background-color: var(--list-item-hover-background-color);
+    }
+
+    &.selected {
+      background-color: var(--list-item-selected-background-color);
+      color: var(--list-item-selected-text-color);
+    }
+
+    &.git-repo {
+      .remote-explorer-entry-name {
+        font-weight: var(--font-weight-semibold);
+      }
+    }
+
+    .remote-explorer-entry-icon {
+      flex-shrink: 0;
+      width: 18px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .remote-explorer-entry-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: var(--font-size-sm);
+    }
+
+    .remote-explorer-git-badge {
+      flex-shrink: 0;
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background-color: var(--list-item-selected-background-color);
+      color: var(--list-item-selected-text-color);
+      font-weight: var(--font-weight-semibold);
+      text-transform: uppercase;
+    }
+  }
+
+  .remote-explorer-current-path {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-half);
+    padding: var(--spacing-third) var(--spacing-half);
+    border-top: var(--base-border);
+    background-color: var(--box-alt-background-color);
+    font-size: var(--font-size-sm);
+
+    .remote-explorer-path-label {
+      flex-shrink: 0;
+      color: var(--text-secondary-color);
+    }
+
+    code {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
 import { TextBox } from '../lib/text-box'
 import { Dispatcher } from '../dispatcher'
 import { SSHConnection } from '../../models/ssh-connection'
+import { RemoteFileExplorer } from './remote-file-explorer'
 
 interface IAddRemoteRepositoryDialogProps {
   readonly dispatcher: Dispatcher
@@ -16,6 +17,7 @@ interface IAddRemoteRepositoryDialogState {
   readonly remotePath: string
   readonly verifying: boolean
   readonly verifyResult: string | null
+  readonly showExplorer: boolean
 }
 
 export class AddRemoteRepositoryDialog extends React.Component<
@@ -31,6 +33,7 @@ export class AddRemoteRepositoryDialog extends React.Component<
       remotePath: '',
       verifying: false,
       verifyResult: null,
+      showExplorer: false,
     }
   }
 
@@ -40,6 +43,7 @@ export class AddRemoteRepositoryDialog extends React.Component<
       this.state.remotePath.length === 0
 
     const hasConnections = this.props.sshConnections.length > 0
+    const selectedConnection = this.getSelectedConnection()
 
     return (
       <Dialog
@@ -84,12 +88,29 @@ export class AddRemoteRepositoryDialog extends React.Component<
                 ))}
               </select>
 
-              <TextBox
-                label="Remote Repository Path"
-                value={this.state.remotePath}
-                onValueChanged={this.onRemotePathChanged}
-                placeholder="e.g. /home/user/projects/my-repo"
-              />
+              <div className="remote-path-row">
+                <TextBox
+                  label="Remote Repository Path"
+                  value={this.state.remotePath}
+                  onValueChanged={this.onRemotePathChanged}
+                  placeholder="e.g. /home/user/projects/my-repo"
+                />
+                <button
+                  className="browse-remote-button"
+                  onClick={this.onToggleExplorer}
+                  type="button"
+                  disabled={selectedConnection === null}
+                >
+                  {this.state.showExplorer ? 'Hide' : 'Browse…'}
+                </button>
+              </div>
+
+              {this.state.showExplorer && selectedConnection !== null && (
+                <RemoteFileExplorer
+                  connection={selectedConnection}
+                  onPathSelected={this.onExplorerPathSelected}
+                />
+              )}
 
               <button
                 className="link-button"
@@ -97,7 +118,7 @@ export class AddRemoteRepositoryDialog extends React.Component<
                 type="button"
                 disabled={disabled || this.state.verifying}
               >
-                Test connection & verify repository
+                Test connection &amp; verify repository
               </button>
 
               {this.state.verifyResult !== null && (
@@ -116,6 +137,16 @@ export class AddRemoteRepositoryDialog extends React.Component<
     )
   }
 
+  private getSelectedConnection(): SSHConnection | null {
+    const { selectedConnectionId } = this.state
+    if (selectedConnectionId === null) {
+      return null
+    }
+    return (
+      this.props.sshConnections.find(c => c.id === selectedConnectionId) ?? null
+    )
+  }
+
   private onConnectionChanged = (
     event: React.ChangeEvent<HTMLSelectElement>
   ) => {
@@ -123,11 +154,24 @@ export class AddRemoteRepositoryDialog extends React.Component<
     this.setState({
       selectedConnectionId: isNaN(id) ? null : id,
       verifyResult: null,
+      showExplorer: false,
     })
   }
 
   private onRemotePathChanged = (remotePath: string) => {
     this.setState({ remotePath, verifyResult: null })
+  }
+
+  private onToggleExplorer = () => {
+    this.setState(prev => ({ showExplorer: !prev.showExplorer }))
+  }
+
+  private onExplorerPathSelected = (path: string) => {
+    this.setState({
+      remotePath: path,
+      showExplorer: false,
+      verifyResult: null,
+    })
   }
 
   private onAddConnection = () => {

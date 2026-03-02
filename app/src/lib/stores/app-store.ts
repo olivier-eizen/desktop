@@ -17,7 +17,10 @@ import {
   testSSHConnection as testSSHConnectionExec,
   verifyRemoteRepository,
 } from '../ssh-remote/ssh-exec'
-import { registerRemoteRepository } from '../ssh-remote/remote-git-registry'
+import {
+  registerRemoteRepository,
+  isRemoteRepository,
+} from '../ssh-remote/remote-git-registry'
 import { Account, isDotComAccount } from '../../models/account'
 import { AppMenu, IMenu } from '../../models/app-menu'
 import { Author } from '../../models/author'
@@ -338,6 +341,7 @@ import {
 } from './notifications-store'
 import * as ipcRenderer from '../ipc-renderer'
 import { pathExists } from '../../ui/lib/path-exists'
+import { mkdir, writeFile } from 'fs/promises'
 import { offsetFromNow } from '../offset-from'
 import { findContributionTargetDefaultBranch } from '../branch'
 import { ValidNotificationPullRequestReview } from '../valid-notification-pull-request-review'
@@ -3600,6 +3604,11 @@ export class AppStore extends TypedBaseStore<IAppState> {
       return repository
     }
 
+    // Remote repositories are always "present" if they are registered
+    if (isRemoteRepository(repository.path)) {
+      return await this._updateRepositoryMissing(repository, false)
+    }
+
     const foundRepository =
       (await pathExists(repository.path)) &&
       (await getRepositoryType(repository.path)).kind === 'regular' &&
@@ -3617,12 +3626,16 @@ export class AppStore extends TypedBaseStore<IAppState> {
       return
     }
 
-    // if the repository path doesn't exist on disk,
-    // set the flag and don't try anything Git-related
-    const exists = await pathExists(repository.path)
-    if (!exists) {
-      this._updateRepositoryMissing(repository, true)
-      return
+    // Remote repos don't need local path validation — the SSH
+    // interception layer handles all git operations remotely.
+    if (!isRemoteRepository(repository.path)) {
+      // if the repository path doesn't exist on disk,
+      // set the flag and don't try anything Git-related
+      const exists = await pathExists(repository.path)
+      if (!exists) {
+        this._updateRepositoryMissing(repository, true)
+        return
+      }
     }
 
     const state = this.repositoryStateCache.get(repository)
@@ -8765,6 +8778,14 @@ export class AppStore extends TypedBaseStore<IAppState> {
       appPath,
       'remote-repos',
       `${connection.hostname}-${repoName}`
+    )
+
+    // Create the local placeholder directory so the app won't mark it missing
+    await mkdir(localPlaceholderPath, { recursive: true })
+    await mkdir(Path.join(localPlaceholderPath, '.git'), { recursive: true })
+    await writeFile(
+      Path.join(localPlaceholderPath, '.git', 'HEAD'),
+      'ref: refs/heads/main\n'
     )
 
     // Add repo to the repositories store

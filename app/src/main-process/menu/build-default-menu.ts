@@ -125,7 +125,7 @@ export function buildDefaultMenu({
       {
         label: __DARWIN__
           ? 'Add Remote Repository (SSH)…'
-          : 'Add &remote repository (SSH)…',
+          : 'Add r&emote repository (SSH)…',
         id: 'add-remote-repository',
         accelerator: 'CmdOrCtrl+Shift+R',
         click: emit('add-remote-repository'),

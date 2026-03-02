@@ -306,4 +306,80 @@ export async function listRemoteDirectory(
   return result.stdout.split('\n').filter(line => line.length > 0)
 }
 
+/** A single entry returned by listRemoteDirectoryEntries. */
+export type RemoteDirectoryEntry = {
+  /** File / directory name (not the full path) */
+  readonly name: string
+  /** Absolute path on the remote machine */
+  readonly path: string
+  /** Whether this entry is a directory */
+  readonly isDirectory: boolean
+  /** Whether this directory contains a .git folder (only checked for dirs) */
+  readonly isGitRepo: boolean
+}
+
+/**
+ * List entries in a remote directory with type information.
+ *
+ * Returns an array of entries with their name, full path, whether they are a
+ * directory, and whether they look like a git repository (contain `.git`).
+ */
+export async function listRemoteDirectoryEntries(
+  dirPath: string,
+  connection: SSHConnection
+): Promise<ReadonlyArray<RemoteDirectoryEntry>> {
+  // Use a single SSH round-trip: for every item that is a directory, also
+  // probe for .git inside it. Output format per line:
+  //   <type> <hasGit> <name>
+  // where type is "d" (directory) or "f" (file/other) and hasGit is "g" or "-".
+  const script = [
+    `cd ${shellEscape(dirPath)} 2>/dev/null || exit 1`,
+    // List entries, skip hidden ones (.), output one per line with metadata
+    `for f in * .[!.]* ..?*; do`,
+    `  [ -e "$f" ] || continue`,
+    `  if [ -d "$f" ]; then`,
+    `    if [ -d "$f/.git" ]; then`,
+    `      echo "d g $f"`,
+    `    else`,
+    `      echo "d - $f"`,
+    `    fi`,
+    `  else`,
+    `    echo "f - $f"`,
+    `  fi`,
+    `done`,
+  ].join('; ')
+
+  const result = await execRemoteCommand(script, connection)
+
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `Failed to list remote directory "${dirPath}": ${result.stderr}`
+    )
+  }
+
+  const normalizedDir = dirPath.endsWith('/') ? dirPath : dirPath + '/'
+
+  return result.stdout
+    .split('\n')
+    .filter(line => line.length > 0)
+    .map(line => {
+      const type = line.charAt(0)
+      const git = line.charAt(2)
+      const name = line.substring(4)
+      return {
+        name,
+        path: normalizedDir + name,
+        isDirectory: type === 'd',
+        isGitRepo: git === 'g',
+      }
+    })
+    .sort((a, b) => {
+      // Directories first, then alphabetical
+      if (a.isDirectory !== b.isDirectory) {
+        return a.isDirectory ? -1 : 1
+      }
+      return a.name.localeCompare(b.name)
+    })
+}
+
 export { buildSSHArgs, shellEscape }
