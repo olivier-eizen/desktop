@@ -11,6 +11,13 @@ import {
   SignInStore,
   UpstreamRemoteName,
 } from '.'
+import { SSHConnectionStore } from './ssh-connection-store'
+import { SSHConnection } from '../../models/ssh-connection'
+import {
+  testSSHConnection as testSSHConnectionExec,
+  verifyRemoteRepository,
+} from '../ssh-remote/ssh-exec'
+import { registerRemoteRepository } from '../ssh-remote/remote-git-registry'
 import { Account, isDotComAccount } from '../../models/account'
 import { AppMenu, IMenu } from '../../models/app-menu'
 import { Author } from '../../models/author'
@@ -474,6 +481,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
   private accounts: ReadonlyArray<Account> = new Array<Account>()
   private repositories: ReadonlyArray<Repository> = new Array<Repository>()
   private recentRepositories: ReadonlyArray<number> = new Array<number>()
+
+  private sshConnectionStore: SSHConnectionStore | null = null
+  private sshConnections: ReadonlyArray<SSHConnection> = []
 
   private selectedRepository: Repository | CloningRepository | null = null
 
@@ -1043,6 +1053,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     return {
       accounts: this.accounts,
+      sshConnections: this.sshConnections,
       repositories,
       recentRepositories: this.recentRepositories,
       localRepositoryStateLookup: this.localRepositoryStateLookup,
@@ -2385,6 +2396,12 @@ export class AppStore extends TypedBaseStore<IAppState> {
       showChangesFilterKey,
       showChangesFilterDefault
     )
+
+    // Load SSH connections and re-register remote repositories
+    if (this.sshConnectionStore) {
+      await this._loadSSHConnections()
+      await this._reregisterRemoteRepositories()
+    }
 
     this.emitUpdateNow()
 
@@ -8632,6 +8649,139 @@ export class AppStore extends TypedBaseStore<IAppState> {
     setBoolean(showChangesFilterKey, this.showChangesFilter)
     this.updateMenuLabelsForSelectedRepository()
     this.emitUpdate()
+  }
+
+  // ── SSH Remote Repository Methods ──────────────────────────────
+
+  /** This shouldn't be called directly. See 'Dispatcher'. */
+  public _initSSHConnectionStore(store: SSHConnectionStore) {
+    this.sshConnectionStore = store
+  }
+
+  /** This shouldn't be called directly. See 'Dispatcher'. */
+  public async _loadSSHConnections(): Promise<void> {
+    if (!this.sshConnectionStore) {
+      return
+    }
+    this.sshConnections = await this.sshConnectionStore.getAll()
+    this.emitUpdate()
+  }
+
+  public getSSHConnections(): ReadonlyArray<SSHConnection> {
+    return this.sshConnections
+  }
+
+  /** This shouldn't be called directly. See 'Dispatcher'. */
+  public async _addSSHConnection(
+    connection: Omit<SSHConnection, 'id'>
+  ): Promise<SSHConnection | null> {
+    if (!this.sshConnectionStore) {
+      return null
+    }
+    const created = await this.sshConnectionStore.add(connection)
+    await this._loadSSHConnections()
+    return created
+  }
+
+  /** This shouldn't be called directly. See 'Dispatcher'. */
+  public async _removeSSHConnection(id: number): Promise<void> {
+    if (!this.sshConnectionStore) {
+      return
+    }
+    await this.sshConnectionStore.remove(id)
+    await this._loadSSHConnections()
+  }
+
+  /** This shouldn't be called directly. See 'Dispatcher'. */
+  public async _testSSHConnection(
+    id: number
+  ): Promise<{ readonly ok: boolean; readonly error?: string }> {
+    if (!this.sshConnectionStore) {
+      return { ok: false, error: 'SSH connection store not initialized' }
+    }
+    const connection = await this.sshConnectionStore.getById(id)
+    if (!connection) {
+      return { ok: false, error: 'Connection not found' }
+    }
+    return testSSHConnectionExec(connection)
+  }
+
+  /** This shouldn't be called directly. See 'Dispatcher'. */
+  public async _testSSHRemoteRepository(
+    connectionId: number,
+    remotePath: string
+  ): Promise<{ readonly ok: boolean; readonly error?: string }> {
+    if (!this.sshConnectionStore) {
+      return { ok: false, error: 'SSH connection store not initialized' }
+    }
+    const connection = await this.sshConnectionStore.getById(connectionId)
+    if (!connection) {
+      return { ok: false, error: 'Connection not found' }
+    }
+    return verifyRemoteRepository(remotePath, connection)
+  }
+
+  /** This shouldn't be called directly. See 'Dispatcher'. */
+  /** Re-register all remote repositories on startup so git interception works. */
+  public async _reregisterRemoteRepositories(): Promise<void> {
+    if (!this.sshConnectionStore) {
+      return
+    }
+
+    for (const repo of this.repositories) {
+      const ref = await this.sshConnectionStore.getRemoteRef(repo.id)
+      if (!ref) {
+        continue
+      }
+
+      const connection = await this.sshConnectionStore.getById(
+        ref.sshConnectionId
+      )
+      if (!connection) {
+        continue
+      }
+
+      registerRemoteRepository(repo.path, ref.remotePath, connection)
+    }
+  }
+
+  public async _addRemoteRepository(
+    connectionId: number,
+    remotePath: string
+  ): Promise<void> {
+    if (!this.sshConnectionStore) {
+      return
+    }
+
+    const connection = await this.sshConnectionStore.getById(connectionId)
+    if (!connection) {
+      return
+    }
+
+    // Create a local placeholder directory name from the remote path
+    const repoName = remotePath.split('/').pop() || 'remote-repo'
+    const appPath = await getAppPath()
+    const localPlaceholderPath = Path.join(
+      appPath,
+      'remote-repos',
+      `${connection.hostname}-${repoName}`
+    )
+
+    // Add repo to the repositories store
+    const repo = await this.repositoriesStore.addRepository(
+      localPlaceholderPath
+    )
+
+    // Store the remote ref
+    await this.sshConnectionStore.setRemoteRef(
+      repo.id,
+      connectionId,
+      remotePath
+    )
+    // Register it for remote git execution
+    registerRemoteRepository(localPlaceholderPath, remotePath, connection)
+
+    await this._selectRepository(repo)
   }
 }
 

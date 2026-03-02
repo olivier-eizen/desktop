@@ -3,6 +3,10 @@ import { BaseDatabase } from './base-database'
 import { WorkflowPreferences } from '../../models/workflow-preferences'
 import { assertNonNullable } from '../fatal-error'
 import { GitHubAccountType } from '../api'
+import {
+  IDatabaseSSHConnection,
+  IDatabaseRemoteRepositoryRef,
+} from '../../models/ssh-connection'
 
 export interface IDatabaseOwner {
   readonly id?: number
@@ -93,6 +97,15 @@ export class RepositoriesDatabase extends BaseDatabase {
   /** The GitHub repository owners table. */
   public declare owners: Dexie.Table<IDatabaseOwner, number>
 
+  /** SSH connections table for remote machine access. */
+  public declare sshConnections: Dexie.Table<IDatabaseSSHConnection, number>
+
+  /** Maps repositories to their remote SSH locations. */
+  public declare remoteRepositoryRefs: Dexie.Table<
+    IDatabaseRemoteRepositoryRef,
+    number
+  >
+
   /**
    * Initialize a new repository database.
    *
@@ -137,6 +150,12 @@ export class RepositoriesDatabase extends BaseDatabase {
 
     this.conditionalVersion(8, {}, ensureNoUndefinedParentID)
     this.conditionalVersion(9, { owners: '++id, &key' }, createOwnerKey)
+
+    // Version 10: SSH remote repository support
+    this.conditionalVersion(10, {
+      sshConnections: '++id, &[hostname+username+port]',
+      remoteRepositoryRefs: '&repositoryId, sshConnectionId',
+    })
   }
 }
 

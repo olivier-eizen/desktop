@@ -3,6 +3,7 @@ import { CommitIdentity } from '../models/commit-identity'
 import { IDiff, ImageDiffType } from '../models/diff'
 import { Repository, ILocalRepositoryState } from '../models/repository'
 import { Branch, IAheadBehind } from '../models/branch'
+import { SSHConnection } from '../models/ssh-connection'
 import { Tip } from '../models/tip'
 import { Commit } from '../models/commit'
 import { CommittedFileChange, WorkingDirectoryStatus } from '../models/status'
@@ -78,6 +79,10 @@ export type PossibleSelections =
 /** All of the shared app state. */
 export interface IAppState {
   readonly accounts: ReadonlyArray<Account>
+
+  /** The available SSH connections for remote repository access. */
+  readonly sshConnections: ReadonlyArray<SSHConnection>
+
   /**
    * The current list of repositories tracked in the application
    */

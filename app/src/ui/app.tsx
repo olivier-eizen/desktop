@@ -13,6 +13,11 @@ import {
 import { Dispatcher } from './dispatcher'
 import { AppStore, GitHubUserStore, IssuesStore } from '../lib/stores'
 import { assertNever } from '../lib/fatal-error'
+import {
+  AddSSHConnectionDialog,
+  AddRemoteRepositoryDialog,
+  ManageSSHConnectionsDialog,
+} from './ssh-remote'
 import { shell } from '../lib/app-shell'
 import { updateStore, UpdateStatus } from './lib/update-store'
 import { RetryAction } from '../models/retry-actions'
@@ -491,6 +496,10 @@ export class App extends React.Component<IAppProps, IAppState> {
         return this.openCurrentRepositoryInShell()
       case 'clone-repository':
         return this.showCloneRepo()
+      case 'add-remote-repository':
+        return this.props.dispatcher.showAddRemoteRepositoryDialog()
+      case 'manage-ssh-connections':
+        return this.props.dispatcher.showManageSSHConnectionsDialog()
       case 'show-about':
         return this.showAbout()
       case 'go-to-commit-message':
@@ -2593,6 +2602,35 @@ export class App extends React.Component<IAppProps, IAppState> {
             key="commit-progress-dialog"
             subscribeToCommitOutput={popup.subscribeToCommitOutput}
             onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
+      case PopupType.ManageSSHConnections: {
+        return (
+          <ManageSSHConnectionsDialog
+            key="manage-ssh-connections"
+            dispatcher={this.props.dispatcher}
+            onDismissed={onPopupDismissedFn}
+            sshConnections={this.state.sshConnections}
+          />
+        )
+      }
+      case PopupType.AddSSHConnection: {
+        return (
+          <AddSSHConnectionDialog
+            key="add-ssh-connection"
+            dispatcher={this.props.dispatcher}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
+      case PopupType.AddRemoteRepository: {
+        return (
+          <AddRemoteRepositoryDialog
+            key="add-remote-repository"
+            dispatcher={this.props.dispatcher}
+            onDismissed={onPopupDismissedFn}
+            sshConnections={this.state.sshConnections}
           />
         )
       }

@@ -121,6 +121,22 @@ export function buildDefaultMenu({
         accelerator: 'CmdOrCtrl+Shift+O',
         click: emit('clone-repository'),
       },
+      separator,
+      {
+        label: __DARWIN__
+          ? 'Add Remote Repository (SSH)…'
+          : 'Add &remote repository (SSH)…',
+        id: 'add-remote-repository',
+        accelerator: 'CmdOrCtrl+Shift+R',
+        click: emit('add-remote-repository'),
+      },
+      {
+        label: __DARWIN__
+          ? 'Manage SSH Connections…'
+          : 'Manage SSH &connections…',
+        id: 'manage-ssh-connections',
+        click: emit('manage-ssh-connections'),
+      },
     ],
   }
 

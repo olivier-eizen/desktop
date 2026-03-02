@@ -28,6 +28,8 @@ export type MenuEvent =
   | 'branch-on-github'
   | 'view-repository-on-github'
   | 'clone-repository'
+  | 'add-remote-repository'
+  | 'manage-ssh-connections'
   | 'show-about'
   | 'go-to-commit-message'
   | 'open-pull-request'

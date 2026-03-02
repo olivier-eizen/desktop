@@ -1,7 +1,7 @@
 {
-  "name": "desktop",
-  "productName": "GitHub Desktop",
-  "bundleID": "com.github.GitHubClient",
+  "name": "desktop-remote",
+  "productName": "GitHub Desktop Remote",
+  "bundleID": "com.github.GitHubClientRemote",
   "companyName": "GitHub, Inc.",
   "version": "3.5.6-beta1",
   "main": "./main.js",
@@ -9,7 +9,7 @@
     "type": "git",
     "url": "https://github.com/desktop/desktop.git"
   },
-  "description": "Simple collaboration from your desktop",
+  "description": "GitHub Desktop over SSH to remote machines",
   "author": {
     "name": "GitHub, Inc.",
     "email": "opensource+desktop@github.com",

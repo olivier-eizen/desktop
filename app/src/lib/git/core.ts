@@ -17,6 +17,10 @@ import { kStringMaxLength } from 'buffer'
 import { withHooksEnv } from '../hooks/with-hooks-env'
 import { coerceToString } from './coerce-to-string'
 import { pushTerminalChunk } from './push-terminal-chunk'
+import {
+  isRemoteRepository,
+  execRemoteRegisteredGit,
+} from '../ssh-remote/remote-git-registry'
 
 export const isMaxBufferExceededError = (
   error: unknown
@@ -228,6 +232,56 @@ export async function git(
   name: string,
   options?: IGitExecutionOptions
 ): Promise<IGitResult> {
+  // If this repository is registered as a remote SSH repository,
+  // route the git command through SSH instead of local execution.
+  if (isRemoteRepository(path)) {
+    const commandName = `${name}: git ${args.join(' ')}`
+    const result = await GitPerf.measure(commandName, () =>
+      execRemoteRegisteredGit(args, path, {
+        env: options?.env as Record<string, string>,
+        stdin: options?.stdin !== undefined ? String(options.stdin) : undefined,
+        maxBuffer: options?.maxBuffer,
+        processCallback: options?.processCallback,
+        encoding: options?.encoding,
+      })
+    )
+
+    const exitCode = result.exitCode
+    const successExitCodes = options?.successExitCodes ?? new Set([0])
+    const expectedErrors = options?.expectedErrors ?? new Set()
+
+    let gitError: DugiteError | null = null
+    if (!successExitCodes.has(exitCode)) {
+      gitError = parseError(coerceToString(result.stderr))
+      if (gitError === null) {
+        gitError = parseError(coerceToString(result.stdout))
+      }
+    }
+
+    const gitErrorDescription =
+      gitError !== null
+        ? getDescriptionForError(gitError, coerceToString(result.stderr))
+        : null
+
+    const gitResult: IGitResult = {
+      ...result,
+      gitError,
+      gitErrorDescription,
+      path,
+    }
+
+    const acceptableError = gitError === null || expectedErrors.has(gitError)
+    if (
+      (gitError !== null && acceptableError) ||
+      successExitCodes.has(exitCode)
+    ) {
+      return gitResult
+    }
+
+    const terminalOutput = coerceToString(result.stderr)
+    throw new GitError(gitResult, args, terminalOutput)
+  }
+
   const defaultOptions: IGitExecutionOptions = {
     successExitCodes: new Set([0]),
     expectedErrors: new Set(),

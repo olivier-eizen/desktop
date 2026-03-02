@@ -4076,4 +4076,56 @@ export class Dispatcher {
   public toggleChangesFilterVisibility() {
     this.appStore._toggleChangesFilterVisibility()
   }
+
+  // ── SSH Remote Repository Methods ──────────────────────────────
+
+  /** Show the "Add SSH Connection" dialog. */
+  public showAddSSHConnectionDialog(): void {
+    this.showPopup({ type: PopupType.AddSSHConnection })
+  }
+
+  /** Show the "Manage SSH Connections" dialog. */
+  public showManageSSHConnectionsDialog(): void {
+    this.showPopup({ type: PopupType.ManageSSHConnections })
+  }
+
+  /** Show the "Add Remote Repository" dialog. */
+  public showAddRemoteRepositoryDialog(): void {
+    this.showPopup({ type: PopupType.AddRemoteRepository })
+  }
+
+  /** Add a new SSH connection to the store. */
+  public async addSSHConnection(
+    connection: Omit<import('../../models/ssh-connection').SSHConnection, 'id'>
+  ): Promise<void> {
+    await this.appStore._addSSHConnection(connection)
+  }
+
+  /** Remove an SSH connection from the store. */
+  public async removeSSHConnection(id: number): Promise<void> {
+    await this.appStore._removeSSHConnection(id)
+  }
+
+  /** Test an SSH connection. */
+  public async testSSHConnection(
+    id: number
+  ): Promise<{ readonly ok: boolean; readonly error?: string }> {
+    return this.appStore._testSSHConnection(id)
+  }
+
+  /** Test an SSH connection to a specific remote repository. */
+  public async testSSHRemoteRepository(
+    connectionId: number,
+    remotePath: string
+  ): Promise<{ readonly ok: boolean; readonly error?: string }> {
+    return this.appStore._testSSHRemoteRepository(connectionId, remotePath)
+  }
+
+  /** Add a remote repository via SSH. */
+  public async addRemoteRepository(
+    connectionId: number,
+    remotePath: string
+  ): Promise<void> {
+    await this.appStore._addRemoteRepository(connectionId, remotePath)
+  }
 }

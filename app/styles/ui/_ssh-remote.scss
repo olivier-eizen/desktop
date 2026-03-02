@@ -1,0 +1,112 @@
+// Styles for SSH remote repository management dialogs
+
+#add-ssh-connection,
+#add-remote-repository,
+#manage-ssh-connections {
+  .use-agent-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-half);
+    margin-top: var(--spacing);
+    cursor: pointer;
+
+    input[type='checkbox'] {
+      margin: 0;
+    }
+  }
+
+  .ssh-test-result,
+  .ssh-verify-result {
+    margin-top: var(--spacing);
+    padding: var(--spacing-half) var(--spacing);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    background-color: var(--box-alt-background-color);
+  }
+
+  .ssh-no-connections-warning {
+    padding: var(--spacing);
+    background-color: var(--box-alt-background-color);
+    border-radius: var(--border-radius);
+  }
+
+  select {
+    width: 100%;
+    padding: var(--spacing-third);
+    margin-top: var(--spacing-half);
+    margin-bottom: var(--spacing);
+    border: var(--base-border);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size);
+    background-color: var(--background-color);
+    color: var(--text-color);
+  }
+
+  .link-button {
+    background: none;
+    border: none;
+    color: var(--link-button-color);
+    cursor: pointer;
+    padding: 0;
+    font-size: var(--font-size);
+    text-decoration: underline;
+
+    &:hover {
+      color: var(--link-button-hover-color);
+    }
+  }
+}
+
+#manage-ssh-connections {
+  .ssh-connections-list {
+    max-height: 250px;
+    overflow-y: auto;
+    border: var(--base-border);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing);
+
+    .no-connections {
+      padding: var(--spacing);
+      text-align: center;
+      color: var(--text-secondary-color);
+    }
+
+    .ssh-connection-item {
+      padding: var(--spacing-half) var(--spacing);
+      cursor: pointer;
+      border-bottom: var(--base-border);
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      &:hover {
+        background-color: var(--list-item-hover-background-color);
+      }
+
+      &.selected {
+        background-color: var(--list-item-selected-background-color);
+        color: var(--list-item-selected-text-color);
+      }
+
+      .ssh-connection-name {
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .ssh-connection-detail {
+        font-size: var(--font-size-sm);
+        color: var(--text-secondary-color);
+      }
+    }
+  }
+
+  .ssh-connections-actions {
+    display: flex;
+    gap: var(--spacing-half);
+    margin-bottom: var(--spacing);
+
+    .button-component {
+      flex: 1;
+    }
+  }
+}

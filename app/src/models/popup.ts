@@ -107,6 +107,9 @@ export enum PopupType {
   GenerateCommitMessageDisclaimer = 'GenerateCommitMessageDisclaimer',
   HookFailed = 'HookFailed',
   CommitProgress = 'CommitProgress',
+  ManageSSHConnections = 'ManageSSHConnections',
+  AddSSHConnection = 'AddSSHConnection',
+  AddRemoteRepository = 'AddRemoteRepository',
 }
 
 interface IBasePopup {
@@ -478,5 +481,14 @@ export type PopupDetail =
   | {
       type: PopupType.CommitProgress
       subscribeToCommitOutput: TerminalOutputListener
+    }
+  | {
+      type: PopupType.ManageSSHConnections
+    }
+  | {
+      type: PopupType.AddSSHConnection
+    }
+  | {
+      type: PopupType.AddRemoteRepository
     }
 export type Popup = IBasePopup & PopupDetail

@@ -34,6 +34,7 @@ import {
   AccountsStore,
   PullRequestStore,
 } from '../lib/stores'
+import { SSHConnectionStore } from '../lib/stores/ssh-connection-store'
 import { GitHubUserDatabase } from '../lib/databases'
 import { SelectionType, IAppState } from '../lib/app-state'
 import { StatsDatabase, StatsStore } from '../lib/stats'
@@ -268,9 +269,8 @@ trampolineServer.registerCommandHandler(
   createCredentialHelperTrampolineHandler(accountsStore)
 )
 
-const repositoriesStore = new RepositoriesStore(
-  new RepositoriesDatabase('Database')
-)
+const repositoriesDatabase = new RepositoriesDatabase('Database')
+const repositoriesStore = new RepositoriesStore(repositoriesDatabase)
 
 const pullRequestStore = new PullRequestStore(
   new PullRequestDatabase('PullRequestDatabase'),
@@ -321,6 +321,10 @@ const appStore = new AppStore(
 appStore.onDidUpdate(state => {
   currentState = state
 })
+
+// Initialize SSH connection store for remote repository support
+const sshConnectionStore = new SSHConnectionStore(repositoriesDatabase)
+appStore._initSSHConnectionStore(sshConnectionStore)
 
 const dispatcher = new Dispatcher(
   appStore,
