@@ -74,17 +74,28 @@ export async function execRemoteGit(
   return new Promise((resolve, reject) => {
     const sshArgs = buildSSHArgs(connection)
 
-    // Build the remote command: cd to repo path, then run git
-    const envPrefix = options?.env
-      ? Object.entries(options.env)
-          .map(([k, v]) => `${shellEscape(k)}=${shellEscape(v)}`)
-          .join(' ') + ' '
-      : ''
+    // Build the remote command: cd to repo path, then run git.
+    // Filter out env vars that are null/undefined or that reference local
+    // paths which are meaningless on the remote machine (e.g. GIT_LFS_PROGRESS).
+    const remoteEnvVars = options?.env
+      ? Object.entries(options.env).filter(
+          ([k, v]) => typeof v === 'string' && k !== 'GIT_LFS_PROGRESS'
+        )
+      : []
+
+    const envPrefix =
+      remoteEnvVars.length > 0
+        ? remoteEnvVars
+            .map(([k, v]) => `${k}=${shellEscape(v as string)}`)
+            .join(' ') + ' '
+        : ''
 
     const gitCommand = args.map(shellEscape).join(' ')
     const remoteCommand = `cd ${shellEscape(
       remotePath
     )} && ${envPrefix}git ${gitCommand}`
+
+    log.debug(`[SSH] Remote command: ${remoteCommand}`)
 
     const allArgs = [...sshArgs, remoteCommand]
 
@@ -94,6 +105,13 @@ export async function execRemoteGit(
       stdio: ['pipe', 'pipe', 'pipe'],
     })
 
+    // Set encoding so that processCallback consumers (e.g. byline-based
+    // progress parsers) receive strings rather than Buffer objects.
+    if (options?.encoding !== 'buffer') {
+      process.stdout?.setEncoding('utf8')
+      process.stderr?.setEncoding('utf8')
+    }
+
     options?.processCallback?.(process)
 
     if (options?.stdin && process.stdin) {
@@ -101,22 +119,37 @@ export async function execRemoteGit(
       process.stdin.end()
     }
 
-    const stdoutChunks: Buffer[] = []
-    const stderrChunks: Buffer[] = []
+    const useStringMode = options?.encoding !== 'buffer'
+    const stdoutStrChunks: string[] = []
+    const stderrStrChunks: string[] = []
+    const stdoutBufChunks: Buffer[] = []
+    const stderrBufChunks: Buffer[] = []
     let totalStdout = 0
     let totalStderr = 0
 
-    process.stdout?.on('data', (chunk: Buffer) => {
-      totalStdout += chunk.length
+    process.stdout?.on('data', (chunk: Buffer | string) => {
+      const len =
+        typeof chunk === 'string' ? Buffer.byteLength(chunk) : chunk.length
+      totalStdout += len
       if (totalStdout <= maxBuffer) {
-        stdoutChunks.push(chunk)
+        if (useStringMode) {
+          stdoutStrChunks.push(chunk as string)
+        } else {
+          stdoutBufChunks.push(chunk as Buffer)
+        }
       }
     })
 
-    process.stderr?.on('data', (chunk: Buffer) => {
-      totalStderr += chunk.length
+    process.stderr?.on('data', (chunk: Buffer | string) => {
+      const len =
+        typeof chunk === 'string' ? Buffer.byteLength(chunk) : chunk.length
+      totalStderr += len
       if (totalStderr <= maxBuffer) {
-        stderrChunks.push(chunk)
+        if (useStringMode) {
+          stderrStrChunks.push(chunk as string)
+        } else {
+          stderrBufChunks.push(chunk as Buffer)
+        }
       }
     })
 
@@ -125,18 +158,16 @@ export async function execRemoteGit(
     })
 
     process.on('close', code => {
-      const stdoutBuf = Buffer.concat(stdoutChunks)
-      const stderrBuf = Buffer.concat(stderrChunks)
+      let stdout: string | Buffer
+      let stderr: string | Buffer
 
-      const encoding = options?.encoding
-      const stdout =
-        encoding === 'buffer'
-          ? stdoutBuf
-          : stdoutBuf.toString((encoding as BufferEncoding) || 'utf-8')
-      const stderr =
-        encoding === 'buffer'
-          ? stderrBuf
-          : stderrBuf.toString((encoding as BufferEncoding) || 'utf-8')
+      if (useStringMode) {
+        stdout = stdoutStrChunks.join('')
+        stderr = stderrStrChunks.join('')
+      } else {
+        stdout = Buffer.concat(stdoutBufChunks)
+        stderr = Buffer.concat(stderrBufChunks)
+      }
 
       resolve({
         stdout,
@@ -332,22 +363,20 @@ export async function listRemoteDirectoryEntries(
   // probe for .git inside it. Output format per line:
   //   <type> <hasGit> <name>
   // where type is "d" (directory) or "f" (file/other) and hasGit is "g" or "-".
-  const script = [
-    `cd ${shellEscape(dirPath)} 2>/dev/null || exit 1`,
-    // List entries, skip hidden ones (.), output one per line with metadata
-    `for f in * .[!.]* ..?*; do`,
-    `  [ -e "$f" ] || continue`,
-    `  if [ -d "$f" ]; then`,
-    `    if [ -d "$f/.git" ]; then`,
-    `      echo "d g $f"`,
-    `    else`,
-    `      echo "d - $f"`,
-    `    fi`,
-    `  else`,
-    `    echo "f - $f"`,
-    `  fi`,
-    `done`,
-  ].join('; ')
+  const script =
+    `cd ${shellEscape(dirPath)} 2>/dev/null || exit 1\n` +
+    `for f in * .[!.]* ..?*; do\n` +
+    `  [ -e "$f" ] || continue\n` +
+    `  if [ -d "$f" ]; then\n` +
+    `    if [ -d "$f/.git" ]; then\n` +
+    `      echo "d g $f"\n` +
+    `    else\n` +
+    `      echo "d - $f"\n` +
+    `    fi\n` +
+    `  else\n` +
+    `    echo "f - $f"\n` +
+    `  fi\n` +
+    `done`
 
   const result = await execRemoteCommand(script, connection)
 
